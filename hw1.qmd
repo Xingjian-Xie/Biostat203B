@@ -1,0 +1,306 @@
+---
+title: "Biostat 203B Homework 1"
+subtitle: Due Jan 27 @ 11:59PM
+author: Xingjian Xie and 805928972
+format:
+  html:
+    theme: cosmo
+    number-sections: true
+    toc: true
+    toc-depth: 4
+    toc-location: left
+    code-fold: false
+knitr:
+  opts_chunk: 
+    cache: false    
+    echo: true
+    fig.align: 'center'
+    fig.width: 6
+    fig.height: 4
+    message: FALSE
+---
+
+Display machine information for reproducibility:
+
+```{r}
+#| eval: true
+sessionInfo()
+```
+
+## Q1. Git/GitHub
+
+**No handwritten homework reports are accepted for this course.** We work with Git and GitHub. Efficient and abundant use of Git, e.g., frequent and well-documented commits, is an important criterion for grading your homework.
+
+1.  Apply for the [Student Developer Pack](https://education.github.com/pack) at GitHub using your UCLA email. You'll get GitHub Pro account for free (unlimited public and private repositories).\
+    Done
+
+2.  Create a **private** repository `biostat-203b-2023-winter` and add `Hua-Zhou` and `tomokiokuno0528` as your collaborators with write permission.\
+    Done
+
+3.  Top directories of the repository should be `hw1`, `hw2`, ... Maintain two branches `master` and `develop`. The `develop` branch will be your main playground, the place where you develop solution (code) to homework problems and write up report. The `master` branch will be your presentation area. Submit your homework files (Quarto file `qmd`, `html` file converted by Quarto, all code and extra data sets to reproduce results) in `main` branch.\
+    Done
+
+4.  After each homework due date, course reader and instructor will check out your `master` branch for grading. Tag each of your homework submissions with tag names `hw1`, `hw2`, ... Tagging time will be used as your submission time. That means if you tag your `hw1` submission after deadline, penalty points will be deducted for late submission.\
+    Done
+
+5.  After this course, you can make this repository public and use it to demonstrate your skill sets on job market.\
+    OK
+
+## Q2. Data ethics training
+
+This exercise (and later in this course) uses the [MIMIC-IV data](https://mimic-iv.mit.edu), a freely accessible critical care database developed by the MIT Lab for Computational Physiology. Follow the instructions at <https://mimic.mit.edu/docs/gettingstarted/> to (1) complete the CITI `Data or Specimens Only Research` course and (2) obtain the PhysioNet credential for using the MIMIC-IV data. Display the verification links to your completion report and completion certificate here. (Hint: The CITI training takes a couple hours and the PhysioNet credentialing takes a couple days; do not leave it to the last minute.)\
+Completion report link:\
+https://www.citiprogram.org/verify/?k55ee2eb1-eb4d-49d6-bb4f-d9322110c289-53913962\
+Completion certificate link:\
+https://www.citiprogram.org/verify/?weccee698-bdc4-41ee-9a0b-f1ebb470524d-53913962
+
+## Q3. Linux Shell Commands
+
+1.  The `~/mimic` folder within the Docker container contains data sets from MIMIC-IV. Refer to the documentation <https://mimic.mit.edu/docs/iv/> for details of data files.\
+
+```{bash}
+#| eval: true
+#ln -s mnt/C:/Users/18750/OneDrive/Desktop/Study/Biostat203B/hw1/mimic_iv ~/mimic
+ls -l ~/mimic/ 
+```
+
+Please, do **not** put these data files into Git; they are big. Do **not** copy them into your directory. Do **not** decompress the gz data files. These create unnecessary big files on storage and are not big data friendly practices. Just read from the data folder `~/mimic` directly in following exercises.
+
+Use Bash commands to answer following questions.
+
+2.  Display the contents in the folders `core`, `hosp`, `icu`. Why are these data files distributed as `.csv.gz` files instead of `.csv` (comma separated values) files? Read the page <https://mimic.mit.edu/docs/iv/> to understand what's in each folder.
+
+```{bash}
+#| eval: true
+ls ~/mimic/core
+
+```
+
+```{bash}
+#| eval: true
+ls ~/mimic/hosp
+```
+
+```{bash}
+#| eval: true 
+ls ~/mimic/icu
+```
+
+.csv.gz files are compressed forms of .csv files. Compressed files occupy less space and can be download faster.
+
+3.  Briefly describe what bash commands `zcat`, `zless`, `zmore`, and `zgrep` do.\
+    zcat: allows the user to expand and view a compressed file without uncompressing that file.\
+    zless: allows the user to expand and view a compressed file without uncompressing that file.\
+    zmore: allows the user to examine compressed or plain text files one screenful at a time on a soft-copy terminal without uncompressing that file.\
+    zgrep: allows the user to search the contents of a compressed file without uncompressing it.
+
+4.  What's the output of the following bash script?
+
+```{bash}
+#| eval: true
+for datafile in ~/mimic/core/*.gz
+do
+  ls -l $datafile
+done
+```
+
+This command lists every .gz file in core folder
+
+Display the number of lines in each data file using a similar loop.
+
+```{bash}
+#| eval: true
+for datafile in ~/mimic/core/*.gz
+  do
+  echo \$datafile
+  zcat \$datafile | wc -l
+  done
+```
+
+5.  Display the first few lines of `admissions.csv.gz`. How many rows are in this data file? How many unique patients (identified by `subject_id`) are in this data file? (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
+
+```{bash}
+#| eval: true
+zcat ~/mimic/core/admissions.csv.gz | head -10
+zcat ~/mimic/core/admissions.csv.gz | wc -l 
+
+zcat ~/mimic/core/admissions.csv.gz | sort | \
+awk -F ',' 'NR>1 {print \$1 }' | uniq | wc -l 
+```
+
+6.  What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity`? Also report the count for each unique value of these variables. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, and so on.)\
+admission_type
+
+```{bash}
+#| eval: true
+zcat ~/mimic/core/admissions.csv.gz | head -10
+
+zcat ~/mimic/core/admissions.csv.gz | \
+awk -F ',' 'NR>1 {print \$6 }' | sort | uniq -c 
+```
+
+admission_location
+
+```{bash}
+#| eval: true
+zcat ~/mimic/core/admissions.csv.gz | \
+awk -F ',' 'NR>1 {print \$7 }' | sort | uniq -c 
+```
+
+insurance
+
+```{bash}
+#| eval: true
+zcat ~/mimic/core/admissions.csv.gz | \
+awk -F ',' 'NR>1 {print \$9 }' | sort | uniq -c 
+
+```
+
+ethnicity
+
+```{bash}
+#| eval: true
+zcat ~/mimic/core/admissions.csv.gz | \
+awk -F ',' 'NR>1 {print \$12 }' | sort | uniq -c 
+```
+
+## Q4. Who's popular in Price and Prejudice
+
+1.  You and your friend just have finished reading *Pride and Prejudice* by Jane Austen. Among the four main characters in the book, Elizabeth, Jane, Lydia, and Darcy, your friend thinks that Darcy was the most mentioned. You, however, are certain it was Elizabeth. Obtain the full text of the novel from <http://www.gutenberg.org/cache/epub/42671/pg42671.txt> and save to your local folder.
+
+```{bash}
+#| eval: false
+#wget -nc http://www.gutenberg.org/cache/epub/42671/pg42671.txt
+```
+
+Explain what `wget -nc` does. Do **not** put this text file `pg42671.txt` in Git. Complete the following loop to tabulate the number of times each of the four characters is mentioned using Linux commands.\
+wget is the non-interactive network downloader which is used to download files from the server even when the user has not logged on to the system and it can work in the background without hindering the current process. -nc option is to prevent repetitive download when the file has already been downloaded
+
+```{bash}
+#| eval: true
+#wget -nc http://www.gutenberg.org/cache/epub/42671/pg42671.txt
+for char in Elizabeth Jane Lydia Darcy
+do
+  echo \$char:
+  grep -o \$char pg42671.txt | wc -l
+done
+```
+
+2.  What's the difference between the following two commands?
+
+```{bash}
+#| eval: false
+echo 'hello, world' > test1.txt
+```
+
+and
+
+```{bash}
+#| eval: false
+echo 'hello, world' >> test2.txt
+```
+
+`>` command write from beginning each time and `>>` appends input to the file
+
+3.  Using your favorite text editor (e.g., `vi`), type the following and save the file as `middle.sh`:
+
+```{bash eval=FALSE}
+#!/bin/sh
+# Select lines from the middle of a file.
+# Usage: bash middle.sh filename end_line num_lines
+head -n "$2" "$1" | tail -n "$3"
+```
+Done
+
+
+Using `chmod` to make the file executable by the owner, and run
+
+```{bash}
+#| eval: true
+chmod 700 ./middle.sh
+./middle.sh pg42671.txt 20 5
+```
+
+Explain the output. Explain the meaning of `"$1"`, `"$2"`, and `"$3"` in this shell script. Why do we need the first line of the shell script?\
+The output is generated by printing the 16th line to 20th line in pg42671.txt file.\
+`$2` is the first input which is ispg4261.txt\
+`$1` is the second input which is 20\
+`$3` is the third input which is 5\
+The first line is to specify the type of shell
+
+## Q5. More fun with Linux
+
+Try following commands in Bash and interpret the results: `cal`, `cal 2021`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
+
+```{bash}
+cal
+cal 2021
+cal 9 1752
+```
+cal gives the calendar for specified year or month. It shows today's month calendar by default. cal 9 1752 skips from 2 to 14 since the British Empire switched from the Julian calendar to the Gregorian calendar
+
+```{bash}
+date
+```
+date shows today's date and current time
+
+```{bash}
+hostname
+```
+hostname shows the user name of my Ubuntu
+
+```{bash}
+arch
+```
+arch shows my machine platform
+
+```{bash}
+uname -a
+```
+uname -a shows detailed information of my machine
+
+```{bash}
+uptime
+```
+uptime gives a one line display of the following information. The current time, how long the system has been running, how many users are currently logged on, and the system load averages for the past 1, 5, and 15 minutes. 
+
+```{bash}
+whoami
+who
+```
+whoami  shows  user name and who and who am i shows nothing since I am using wsl
+
+```{bash}
+w
+```
+The w command is a built-in tool that allows administrators to view information about users that are currently logged in.
+
+```{bash}
+id
+```
+id command in Linux is used to find out user and group names and numeric ID's (UID or group ID) of the current user or any other user in the server.
+
+```{bash}
+last | head
+```
+The last command is used to find out last logged in timing of a user. It shows a list of last logged in users from /var/log/wtmp file since this file was created. | head shows the first 10 lines
+
+```{bash}
+echo {con,pre}{sent,fer}{s,ed}
+```
+this command list all possible combinations of these three lists so there are total 2^3=8 results
+
+```{bash}
+time sleep 5
+```
+
+time sleep 5 suspends a bash shell script or command prompt for five seconds
+
+```{bash}
+history | tail
+```
+
+history is a built-in shell tool that displays a list of commands used in the terminal session but I am using ubuntu so no output.
+
+
+
