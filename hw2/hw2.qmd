@@ -33,8 +33,10 @@ library(R.utils)
 library(tidyverse)
 ```
 
+
 MIMIC data location
 ```{r}
+#ln -s /mnt/c/Users/18750/OneDrive/Desktop/Study/Biostat203B/mimic_iv ~/mimic
 mimic_path <- "~/mimic"
 ```
 
@@ -42,10 +44,10 @@ In this exercise, we use tidyverse (ggplot2, dplyr, etc) to explore the [MIMIC-I
 
 Display the contents of MIMIC data folder. 
 ```{r}
-system(str_c("ls -l ", mimic_path, "/"), intern = TRUE)
-system(str_c("ls -l ", mimic_path, "/core"), intern = TRUE)
-system(str_c("ls -l ", mimic_path, "/hosp"), intern = TRUE)
-system(str_c("ls -l ", mimic_path, "/icu"), intern = TRUE)
+system2('wsl', str_c("ls -l ", mimic_path, "/"))
+system2('wsl', str_c("ls -l ", mimic_path, "/core"))
+system2('wsl', str_c("ls -l ", mimic_path, "/hosp"))
+system2('wsl', str_c("ls -l ", mimic_path, "/icu"))
 ```
 
 ## Q1. `read.csv` (base R) vs `read_csv` (tidyverse) vs `fread` (data.table)
@@ -55,6 +57,13 @@ There are quite a few utilities in R for reading plain text data files. Let us t
 Which function is fastest? Is there difference in the (default) parsed data types? (Hint: R function `system.time` measures run times.)
 
 For later questions, we stick to the `read_csv` in tidyverse.
+
+```{r}
+system.time(read.csv(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(read_csv(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(fread(str_c(mimic_path,"/core/admissions.csv.gz")))
+```
+fread is the fastest 
 
 ## Q2. ICU stays
 

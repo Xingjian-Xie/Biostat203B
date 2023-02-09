@@ -61,7 +61,8 @@ https://www.citiprogram.org/verify/?weccee698-bdc4-41ee-9a0b-f1ebb470524d-539139
 ```{bash}
 #| eval: true
 #ln -s mnt/C:/Users/18750/OneDrive/Desktop/Study/Biostat203B/hw1/mimic_iv ~/mimic
-ls -l ~/mimic/ 
+
+ls -l ~/mimic/
 ```
 
 Please, do **not** put these data files into Git; they are big. Do **not** copy them into your directory. Do **not** decompress the gz data files. These create unnecessary big files on storage and are not big data friendly practices. Just read from the data folder `~/mimic` directly in following exercises.
