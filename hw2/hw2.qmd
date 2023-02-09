@@ -59,79 +59,217 @@ Which function is fastest? Is there difference in the (default) parsed data type
 For later questions, we stick to the `read_csv` in tidyverse.
 
 ```{r}
-system.time(read.csv(str_c(mimic_path,"/core/admissions.csv.gz")))
-system.time(read_csv(str_c(mimic_path,"/core/admissions.csv.gz")))
-system.time(fread(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(dot <- read.csv(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(underscore <- read_csv(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(fread <- fread(str_c(mimic_path,"/core/admissions.csv.gz")))
 ```
 fread is the fastest 
+
+```{R}
+str(dot)
+str(underscore)
+str(fread)
+
+```
+`read.csv` and `fread` read ids and flag as integer.`fread` reads times as POSIXct. `read_csv` reads ids as double.
 
 ## Q2. ICU stays
 
 `icustays.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/icustays/>) contains data about Intensive Care Units (ICU) stays. The first 10 lines are
 ```{r}
-system(
+system2('wsl', 
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/icu/icustays.csv.gz"), 
     " | head"
     ), 
-  intern = TRUE
 )
 ```
 
 1. Import `icustatys.csv.gz` as a tibble `icustays_tble`. 
+```{r}
+icustays_tble = read_csv(str_c(mimic_path, "/icu/icustays.csv.gz"))
+```
 
 2. How many unique `subject_id`? Can a `subject_id` have multiple ICU stays? 
+```{R}
+icustays_tble = arrange(icustays_tble,subject_id)
+icustays_tble
+```
+a `subject_id` can have multiple ICU stays
+
+```{r}
+id_uniq = distinct(icustays_tble,subject_id) %>%
+ arrange(id_uniq)
+
+id_uniq
+```
+There are 53150 unique `subject_id`.
 
 3. Summarize the number of ICU stays per `subject_id` by graphs. 
 
+```{r}
+id_count = count(icustays_tble,subject_id) %>%
+as.data.frame() 
+
+id_count %>%
+ggplot() + 
+  geom_bar(mapping = aes(x = n))
+
+
+```
+This graph shows counts for each repetition time of each id.
+
 4. For each `subject_id`, let's only keep the first ICU stay in the tibble `icustays_tble`. (Hint: `slice_min` and `slice_max` may take long. Think alternative ways to achieve the same function.)
+
+```{r}
+icustays_tble = icustays_tble %>% 
+  arrange(subject_id,intime) %>%
+  distinct(subject_id, .keep_all = T) %>%
+  print(width = Inf)
+
+
+```
+
 
 ## Q3. `admission` data
 
 Information of the patients admitted into hospital is available in `admissions.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/admissions/> for details of each field in this file. The first 10 lines are
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/core/admissions.csv.gz"), 
     " | head"
-    ), 
-  intern = TRUE
+    )
 )
 ```
 
 1. Import `admissions.csv.gz` as a tibble `admissions_tble`.
 
+```{r}
+admissions_tble = read_csv(str_c(mimic_path,'/core/admissions.csv.gz'))
+```
+
+
 2. Let's only keep the admissions that have a match in `icustays_tble` according to `subject_id` and `hadmi_id`.
+
+```{r}
+icustays_tble = icustays_tble %>%
+  arrange(subject_id, hadm_id)
+admissions_tble = admissions_tble %>%
+  arrange(subject_id, hadm_id) %>%
+  semi_join( icustays_tble, by = c('subject_id', 'hadm_id')) %>%
+  print(width = Inf)
+```
+
 
 3. Summarize the following variables by graphics. 
 
     - admission year  
+    
+```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = year(admittime)))
+```
+
     - admission month  
+    
+    ```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = month(admittime)))
+```
+  
     - admission month day  
+    ```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = day(admittime)))
+```
+    
+    
     - admission week day  
+    
+    ```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = weekdays(admittime)))
+```
+    
     - admission hour (anything unusual?)  
+    
+```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = hour(admittime)))
+```
+0 am and 7 am have unusually high frequencies relative to their neighboring hours. The hospital may open extra windows these times.
+
     - admission minute (anything unusual?)  
+    
+```{r}
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = minute(admittime)))
+```
+0, 15, 30, 45 have unusally higher frequencies than their neighboring minutes. The hospital may open extra windows these times.
+
     - length of hospital stay (anything unusual?)    
+
+
+```{r}
+
+admissions_tble %>%
+ggplot() +
+  geom_bar(aes(x = (dischtime-admittime)/2400)) +
+  xlim(0,30) + xlab('length of stay (day)')
+
+```
+I filter out people with length of stay greater than 30 days. Otherwise, it is impossible to see the majority of the patterns. Most people stay in hospital between 0 to 10 days. The data looks nearly normally distributed between 0 day and 8 day. There are 589 people stay longer than 30 days.
     
 ## Q4. `patients` data
 
 Patient information is available in `patients.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/patients/> for details of each field in this file. The first 10 lines are
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/core/patients.csv.gz"), 
     " | head"
-    ), 
-  intern = TRUE
+    )
 )
 ```
 
 1. Import `patients.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/patients/>) as a tibble `patients_tble` and only keep the patients who have a match in `icustays_tble` (according to `subject_id`).
 
+```{r}
+patients_tble = read_csv(str_c(mimic_path,'/core/patients.csv.gz'))
+patients_tble = patients_tble %>%
+  arrange(subject_id) %>%
+  semi_join(icustays_tble) %>%
+  print(width = Inf)
+
+```
+
+
 2. Summarize variables `gender` and `anchor_age`, and explain any patterns you see.
+
+```{r}
+patients_tble %>%
+  ggplot() +
+  geom_bar(aes(x = gender))
+```
+
+
+```{r}
+patients_tble %>%
+  ggplot() +
+  geom_bar(aes(x = anchor_age))
+
+```
+
 
 ## Q5. Lab results
 
