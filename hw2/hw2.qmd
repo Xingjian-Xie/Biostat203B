@@ -100,9 +100,9 @@ a `subject_id` can have multiple ICU stays
 
 ```{r}
 id_uniq = distinct(icustays_tble,subject_id) %>%
- arrange(id_uniq)
+  arrange() %>%
+  print()
 
-id_uniq
 ```
 There are 53150 unique `subject_id`.
 
@@ -123,7 +123,7 @@ This graph shows counts for each repetition time of each id.
 4. For each `subject_id`, let's only keep the first ICU stay in the tibble `icustays_tble`. (Hint: `slice_min` and `slice_max` may take long. Think alternative ways to achieve the same function.)
 
 ```{r}
-icustays_tble = icustays_tble %>% 
+icustays_tble = icustays_tble %>%
   arrange(subject_id,intime) %>%
   distinct(subject_id, .keep_all = T) %>%
   print(width = Inf)
@@ -176,14 +176,14 @@ ggplot() +
 
     - admission month  
     
-    ```{r}
+```{r}
 admissions_tble %>%
 ggplot() +
   geom_bar(aes(x = month(admittime)))
 ```
   
     - admission month day  
-    ```{r}
+```{r}
 admissions_tble %>%
 ggplot() +
   geom_bar(aes(x = day(admittime)))
@@ -192,7 +192,7 @@ ggplot() +
     
     - admission week day  
     
-    ```{r}
+```{r}
 admissions_tble %>%
 ggplot() +
   geom_bar(aes(x = weekdays(admittime)))
@@ -202,7 +202,7 @@ ggplot() +
     
 ```{r}
 admissions_tble %>%
-ggplot() +
+  ggplot() +
   geom_bar(aes(x = hour(admittime)))
 ```
 0 am and 7 am have unusually high frequencies relative to their neighboring hours. The hospital may open extra windows these times.
@@ -223,11 +223,11 @@ ggplot() +
 
 admissions_tble %>%
 ggplot() +
-  geom_bar(aes(x = (dischtime-admittime)/2400)) +
-  xlim(0,30) + xlab('length of stay (day)')
+  geom_bar(aes(x = (dischtime-admittime)/24/60)) +
+  xlim(0,50) + xlab('length of stay (day)')
 
 ```
-I filter out people with length of stay greater than 30 days. Otherwise, it is impossible to see the majority of the patterns. Most people stay in hospital between 0 to 10 days. The data looks nearly normally distributed between 0 day and 8 day. There are 589 people stay longer than 30 days.
+I filter out people with length of stay greater than 50 days. Otherwise, it is impossible to see the majority of the patterns. Most people stay in hospital between 0 to 30 days. There are 589 people stay longer than 30 days. This data is very skew to right.
     
 ## Q4. `patients` data
 
@@ -266,66 +266,128 @@ patients_tble %>%
 ```{r}
 patients_tble %>%
   ggplot() +
-  geom_bar(aes(x = anchor_age))
+  geom_bar(aes(x = anchor_age, fill = gender)) +
+  xlim(10,100)
 
 ```
+```{r}
+patients_tble %>%
+  ggplot() +
+  geom_boxplot(aes(y = anchor_age, x = gender)) 
 
+```
+There are more males than females. Females have higher median anchor age than males. 
 
 ## Q5. Lab results
 
 `labevents.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/labevents/>) contains all laboratory measurements for patients. The first 10 lines are
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/hosp/labevents.csv.gz"), 
     " | head"
-    ), 
-  intern = TRUE
+    )
 )
 ```
 `d_labitems.csv.gz` is the dictionary of lab measurements. 
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/hosp/d_labitems.csv.gz"), 
     " | head"
-    ), 
-  intern = TRUE
+    )
 )
 ```
 
 1. Find how many rows are in `labevents.csv.gz`.
 
+```{r}
+labevents = read_csv(str_c(mimic_path,'/hosp/labevents.csv.gz'))
+```
+
+```{r}
+labevents = read_csv(str_c(mimic_path,'/hosp/labevents_filtered_itemid.csv.gz'))
+```
+
+
 2. We are interested in the lab measurements of creatinine (50912), potassium (50971), sodium (50983), chloride (50902), bicarbonate (50882), hematocrit (51221), white blood cell count (51301), and glucose (50931). Retrieve a subset of `labevents.csv.gz` only containing these items for the patients in `icustays_tble` as a tibble `labevents_tble`. 
 
     Hint: `labevents.csv.gz` is a data file too big to be read in by the `read_csv` function in its default setting. Utilize the `col_select` option in the `read_csv` function to reduce the memory burden. It took my computer 5-10 minutes to ingest this file. If your computer really has trouble importing `labevents.csv.gz`, you can import from the reduced data file `labevents_filtered_itemid.csv.gz`.
 
+```{r}
+head(labevents)
+itemid_interested = c(50912, 50971, 50983, 50902, 50882, 51221, 
+                      51301, 50931)
+labevents_tble = labevents %>%
+  filter(itemid %in% itemid_interested) %>%
+  semi_join(icustays_tble, by = 'subject_id') %>%
+  print()
+```
+
+
 3. Further restrict `labevents_tble` to the first lab measurement during the ICU stay. 
 
+```{r}
+dlabitems_tble = read_csv(str_c(mimic_path, '/hosp/d_labitems.csv.gz')) %>% 
+  filter(itemid %in% itemid_interested)
+
+labevents_tble = labevents_tble %>%
+  left_join(select(icustays_tble, subject_id, intime, outtime),  
+          by=  c('subject_id')) %>% 
+  filter(charttime >= intime & charttime <= outtime) %>% 
+  group_by(subject_id, itemid) %>%
+  arrange(charttime, .by_group = T) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(-intime, -outtime, -charttime) %>%
+  pivot_wider(names_from = itemid, values_from = valuenum) %>%
+  rename_at(vars(as.character(dlabitems_tble$itemid)),
+            ~str_to_lower(dlabitems_tble$label))%>%
+  print(width = Inf)
+```
+
+
+
 4. Summarize the lab measurements by appropriate numerics and graphics. 
+
+```{r}
+summary(labevents_tble)
+```
+
+
+```{r}
+names(labevents_tble) = names(labevents_tble) %>%
+  stringr::str_replace_all("\\s", "_") %>%
+  tolower
+for (i in 2:9){
+a = names(labevents_tble)[i]
+  print(ggplot(labevents_tble) + geom_boxplot(aes_string(y = a)))
+}
+
+```
+
+
 
 ## Q6. Vitals from charted events
 
 `chartevents.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/chartevents/>) contains all the charted data available for a patient. During their ICU stay, the primary repository of a patient’s information is their electronic chart. The `itemid` variable indicates a single measurement type in the database. The `value` variable is the value measured for `itemid`. The first 10 lines of `chartevents.csv.gz` are
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/icu/chartevents.csv.gz"), 
-    " | head"), 
-  intern = TRUE
+    " | head")
 )
 ```
 `d_items.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/icu/d_items/>) is the dictionary for the `itemid` in `chartevents.csv.gz`. 
 ```{r}
-system(
+system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/icu/d_items.csv.gz"), 
-    " | head"), 
-  intern = TRUE
+    " | head")
 )
 ```
 
