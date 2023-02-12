@@ -306,6 +306,7 @@ system2('wsl',
 ```{r}
 labevents = read_csv(str_c(mimic_path,'/hosp/labevents.csv.gz'))
 ```
+Rows: 122103667 Columns: 15── Column specification 
 
 ```{r}
 labevents = read_csv(str_c(mimic_path,'/hosp/labevents_filtered_itemid.csv.gz'))
@@ -395,9 +396,55 @@ system2('wsl',
 
     Hint: `chartevents.csv.gz` is a data file too big to be read in by the `read_csv` function in its default setting. Utilize the `col_select` option in the `read_csv` function to reduce the memory burden. It took my computer >15 minutes to ingest this file. If your computer really has trouble importing `chartevents.csv.gz`, you can import from the reduced data file `chartevents_filtered_itemid.csv.gz`.
 
+```{r}
+chartevents_tble = read_csv(str_c(mimic_path, "/icu/chartevents_filtered_itemid.csv.gz"), col_select = c('subject_id', 'itemid', 'charttime', 'valuenum' ))
+
+itemid_interested2 = c(220045, 220181, 220179, 223761, 220210)
+
+chartevents_tble = chartevents_tble %>% 
+  filter(itemid %in% itemid_interested2) %>%
+  semi_join(icustays_tble, by = 'subject_id') %>%
+  print()
+```
+
+
 2. Further restrict `chartevents_tble` to the first vital measurement during the ICU stay. 
 
+```{r}
+ditems_tble = read_csv(str_c(mimic_path, '/icu/d_items.csv.gz')) %>% 
+  filter(itemid %in% itemid_interested2)
+
+chartevents_tble = chartevents_tble %>%
+  left_join(select(icustays_tble, subject_id, intime, outtime),  
+          by=  c('subject_id')) %>% 
+  filter(charttime >= intime & charttime <= outtime) %>% 
+  group_by(subject_id, itemid) %>%
+  arrange(charttime, .by_group = T) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(-intime, -outtime, -charttime) %>%
+  pivot_wider(names_from = itemid, values_from = valuenum) %>%
+  rename_at(vars(as.character(ditems_tble$itemid)),
+            ~str_to_lower(ditems_tble$label))%>%
+  print(width = Inf)
+```
+
+
 3. Summarize these vital measurements by appropriate numerics and graphics. 
+
+```{r}
+
+names(chartevents_tble) = names(chartevents_tble) %>%
+  stringr::str_replace_all("\\s", "_") %>%
+  tolower
+for (i in 2:6){
+a = names(chartevents_tble)[i]
+  print(ggplot(chartevents_tble) + geom_boxplot(aes_string(y = a), outlier.shape = NA) + coord_cartesian(ylim = quantile(chartevents_tble[i],c(0.1, 0.9), na.rm = T)))
+}
+
+
+```
+
 
 ## Q7. Putting things together
 
