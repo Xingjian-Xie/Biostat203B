@@ -364,7 +364,9 @@ names(labevents_tble) = names(labevents_tble) %>%
   tolower
 for (i in 2:9){
 a = names(labevents_tble)[i]
-  print(ggplot(labevents_tble) + geom_boxplot(aes_string(y = a)))
+  print(ggplot(labevents_tble) +
+  geom_boxplot(aes_string(y = a), outlier.shape = NA) + coord_cartesian(ylim =
+  quantile(labevents_tble[i], c(0.1, 0.9), na.rm = T)))
 }
 
 ```
@@ -433,13 +435,21 @@ chartevents_tble = chartevents_tble %>%
 3. Summarize these vital measurements by appropriate numerics and graphics. 
 
 ```{r}
+summary(chartevents_tble)
+```
+
+
+```{r}
 
 names(chartevents_tble) = names(chartevents_tble) %>%
   stringr::str_replace_all("\\s", "_") %>%
   tolower
 for (i in 2:6){
-a = names(chartevents_tble)[i]
-  print(ggplot(chartevents_tble) + geom_boxplot(aes_string(y = a), outlier.shape = NA) + coord_cartesian(ylim = quantile(chartevents_tble[i],c(0.1, 0.9), na.rm = T)))
+  col = names(chartevents_tble)[i]
+  print(ggplot(chartevents_tble) + 
+  geom_boxplot(aes_string(y = col), outlier.shape = NA) + 
+  coord_cartesian(ylim =
+  quantile(chartevents_tble[i],c(0.1, 0.9), na.rm = T)))
 }
 
 
@@ -457,15 +467,81 @@ Let us create a tibble `mimic_icu_cohort` for all ICU stays, where rows are the 
 - first vital measurements during ICU stay
 - an indicator variable `thirty_day_mort` whether the patient died within 30 days of hospital admission (30 day mortality)
 
+```{r}
+mimic_icu_cohort = icustays_tble %>%
+  left_join(admissions_tble, by = c('subject_id')) %>%
+  left_join(patients_tble, by = c('subject_id')) %>%
+  left_join(labevents_tble, by = c('subject_id')) %>%
+  left_join(chartevents_tble, by = c('subject_id')) %>%
+  mutate(age_adm = anchor_age + year(admittime) - anchor_year) %>%
+  filter(age_adm > 18) %>%
+  mutate(thirty_day_mort = ifelse(is.na(deathtime), 'False',
+  ifelse(as.Date(deathtime) - as.Date(admittime) <= 30, 'True', 'False'))) %>%
+  print()
+  
+  
+
+```
+
+
+
 ## Q8. Exploratory data analysis (EDA)
 
 Summarize following information using appropriate numerics or graphs.
 
 - `thirty_day_mort` vs demographic variables (ethnicity, language, insurance, marital_status, gender, age at hospital admission)
 
+```{r}
+names(mimic_icu_cohort) = names(mimic_icu_cohort) %>%
+  stringr::str_replace_all("\\s", "_") %>%
+  tolower
+
+col2 = c('ethnicity', 'language', 'insurance', 'marital_status', 'gender')
+
+for (i in col2){
+  (ggplot(mimic_icu_cohort) + 
+  geom_bar(aes_string(x = 'thirty_day_mort', fill = i))) %>%
+  print()
+}
+```
+```{r}
+mimic_icu_cohort %>%
+  ggplot() + geom_boxplot(aes(x = thirty_day_mort, y = age_adm))
+```
+
 - `thirty_day_mort` vs first lab measurements
+
+```{r}
+for (i in 28:35){
+  (ggplot(mimic_icu_cohort) + 
+  geom_boxplot(aes_string(x = 'thirty_day_mort',
+  y = colnames( mimic_icu_cohort)[i]), outlier.shape = NA) + 
+  coord_cartesian(ylim =
+  quantile(mimic_icu_cohort[i], c(0.05, 0.9), na.rm = T))) %>%
+  print()
+}
+
+```
+
 
 - `thirty_day_mort` vs first vital measurements
 
+```{r}
+for (i in 36:40){
+  (ggplot(mimic_icu_cohort) + 
+  geom_boxplot(aes_string(x = 'thirty_day_mort',
+  y = colnames( mimic_icu_cohort)[i]), outlier.shape = NA) + 
+  coord_cartesian(ylim =
+  quantile(mimic_icu_cohort[i], c(0.05, 0.9), na.rm = T))) %>%
+  print()
+}
+
+```
+
 - `thirty_day_mort` vs first ICU unit
 
+```{r}
+mimic_icu_cohort %>%
+  ggplot() + geom_bar(aes(x = thirty_day_mort, fill = first_careunit))
+
+```
