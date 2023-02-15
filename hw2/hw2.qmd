@@ -59,9 +59,10 @@ Which function is fastest? Is there difference in the (default) parsed data type
 For later questions, we stick to the `read_csv` in tidyverse.
 
 ```{r}
-system.time(dot <- read.csv(str_c(mimic_path,"/core/admissions.csv.gz")))
-system.time(underscore <- read_csv(str_c(mimic_path,"/core/admissions.csv.gz")))
-system.time(fread <- fread(str_c(mimic_path,"/core/admissions.csv.gz")))
+system.time(dot <- read.csv(str_c(mimic_path, "/core/admissions.csv.gz")))
+system.time(underscore <- read_csv(str_c(mimic_path, 
+  "/core/admissions.csv.gz")))
+system.time(fread <- fread(str_c(mimic_path, "/core/admissions.csv.gz")))
 ```
 fread is the fastest 
 
@@ -81,9 +82,7 @@ system2('wsl',
   str_c(
     "zcat < ", 
     str_c(mimic_path, "/icu/icustays.csv.gz"), 
-    " | head"
-    ), 
-)
+    " | head"))
 ```
 
 1. Import `icustatys.csv.gz` as a tibble `icustays_tble`. 
@@ -93,13 +92,13 @@ icustays_tble = read_csv(str_c(mimic_path, "/icu/icustays.csv.gz"))
 
 2. How many unique `subject_id`? Can a `subject_id` have multiple ICU stays? 
 ```{R}
-icustays_tble = arrange(icustays_tble,subject_id)
+icustays_tble = arrange(icustays_tble, subject_id)
 icustays_tble
 ```
 a `subject_id` can have multiple ICU stays
 
 ```{r}
-id_uniq = distinct(icustays_tble,subject_id) %>%
+id_uniq = distinct(icustays_tble, subject_id) %>%
   arrange() %>%
   print()
 
@@ -109,7 +108,7 @@ There are 53150 unique `subject_id`.
 3. Summarize the number of ICU stays per `subject_id` by graphs. 
 
 ```{r}
-id_count = count(icustays_tble,subject_id) %>%
+id_count = count(icustays_tble, subject_id) %>%
 as.data.frame() 
 
 id_count %>%
@@ -148,7 +147,7 @@ system2('wsl',
 1. Import `admissions.csv.gz` as a tibble `admissions_tble`.
 
 ```{r}
-admissions_tble = read_csv(str_c(mimic_path,'/core/admissions.csv.gz'))
+admissions_tble = read_csv(str_c(mimic_path, '/core/admissions.csv.gz'))
 ```
 
 
@@ -159,7 +158,7 @@ icustays_tble = icustays_tble %>%
   arrange(subject_id, hadm_id)
 admissions_tble = admissions_tble %>%
   arrange(subject_id, hadm_id) %>%
-  semi_join( icustays_tble, by = c('subject_id', 'hadm_id')) %>%
+  semi_join(icustays_tble, by = c('subject_id', 'hadm_id')) %>%
   print(width = Inf)
 ```
 
@@ -223,7 +222,7 @@ ggplot() +
 
 admissions_tble %>%
 ggplot() +
-  geom_bar(aes(x = (dischtime-admittime)/24/60)) +
+  geom_bar(aes(x = (dischtime-admittime) / 24 / 60)) +
   xlim(0,50) + xlab('length of stay (day)')
 
 ```
@@ -245,7 +244,7 @@ system2('wsl',
 1. Import `patients.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/patients/>) as a tibble `patients_tble` and only keep the patients who have a match in `icustays_tble` (according to `subject_id`).
 
 ```{r}
-patients_tble = read_csv(str_c(mimic_path,'/core/patients.csv.gz'))
+patients_tble = read_csv(str_c(mimic_path, '/core/patients.csv.gz'))
 patients_tble = patients_tble %>%
   arrange(subject_id) %>%
   semi_join(icustays_tble) %>%
@@ -309,7 +308,8 @@ labevents = read_csv(str_c(mimic_path,'/hosp/labevents.csv.gz'))
 Rows: 122103667 Columns: 15── Column specification 
 
 ```{r}
-labevents = read_csv(str_c(mimic_path,'/hosp/labevents_filtered_itemid.csv.gz'))
+labevents = read_csv(str_c(mimic_path, 
+  '/hosp/labevents_filtered_itemid.csv.gz'))
 ```
 
 
@@ -324,7 +324,7 @@ itemid_interested = c(50912, 50971, 50983, 50902, 50882, 51221,
 labevents_tble = labevents %>%
   filter(itemid %in% itemid_interested) %>%
   semi_join(icustays_tble, by = 'subject_id') %>%
-  print()
+  print(width = Inf)
 ```
 
 
@@ -336,7 +336,7 @@ dlabitems_tble = read_csv(str_c(mimic_path, '/hosp/d_labitems.csv.gz')) %>%
 
 labevents_tble = labevents_tble %>%
   left_join(select(icustays_tble, subject_id, intime, outtime),  
-          by=  c('subject_id')) %>% 
+          by = c('subject_id')) %>% 
   filter(charttime >= intime & charttime <= outtime) %>% 
   group_by(subject_id, itemid) %>%
   arrange(charttime, .by_group = T) %>%
@@ -399,7 +399,7 @@ system2('wsl',
     Hint: `chartevents.csv.gz` is a data file too big to be read in by the `read_csv` function in its default setting. Utilize the `col_select` option in the `read_csv` function to reduce the memory burden. It took my computer >15 minutes to ingest this file. If your computer really has trouble importing `chartevents.csv.gz`, you can import from the reduced data file `chartevents_filtered_itemid.csv.gz`.
 
 ```{r}
-chartevents_tble = read_csv(str_c(mimic_path, "/icu/chartevents_filtered_itemid.csv.gz"), col_select = c('subject_id', 'itemid', 'charttime', 'valuenum' ))
+chartevents_tble = read_csv(str_c(mimic_path, "/icu/chartevents_filtered_itemid.csv.gz"), col_select = c('subject_id', 'itemid', 'charttime', 'valuenum'))
 
 itemid_interested2 = c(220045, 220181, 220179, 223761, 220210)
 
@@ -477,7 +477,7 @@ mimic_icu_cohort = icustays_tble %>%
   filter(age_adm > 18) %>%
   mutate(thirty_day_mort = ifelse(is.na(deathtime), 'False',
   ifelse(as.Date(deathtime) - as.Date(admittime) <= 30, 'True', 'False'))) %>%
-  print()
+  print(width = Inf)
   
   
 
@@ -501,7 +501,7 @@ col2 = c('ethnicity', 'language', 'insurance', 'marital_status', 'gender')
 for (i in col2){
   (ggplot(mimic_icu_cohort) + 
   geom_bar(aes_string(x = 'thirty_day_mort', fill = i))) %>%
-  print()
+  print(width = Inf)
 }
 ```
 ```{r}
@@ -518,7 +518,7 @@ for (i in 28:35){
   y = colnames( mimic_icu_cohort)[i]), outlier.shape = NA) + 
   coord_cartesian(ylim =
   quantile(mimic_icu_cohort[i], c(0.05, 0.9), na.rm = T))) %>%
-  print()
+  print(width = Inf)
 }
 
 ```
@@ -533,7 +533,7 @@ for (i in 36:40){
   y = colnames( mimic_icu_cohort)[i]), outlier.shape = NA) + 
   coord_cartesian(ylim =
   quantile(mimic_icu_cohort[i], c(0.05, 0.9), na.rm = T))) %>%
-  print()
+  print(width = Inf)
 }
 
 ```
