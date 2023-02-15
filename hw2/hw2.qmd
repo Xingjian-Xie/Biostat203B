@@ -479,8 +479,10 @@ mimic_icu_cohort = icustays_tble %>%
   ifelse(as.Date(deathtime) - as.Date(admittime) <= 30, 'True', 'False'))) %>%
   print(width = Inf)
   
-  
+```
 
+```{r}
+table(mimic_icu_cohort$thirty_day_mort)
 ```
 
 
