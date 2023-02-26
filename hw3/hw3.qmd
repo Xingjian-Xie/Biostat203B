@@ -38,6 +38,7 @@ I found the current versions of bigrquery (v1.4.1) and dbplyr (v2.3.0) don't wor
 ```{r}
 #| eval: false
 library(devtools)
+library(usethis)
 install_version("bigrquery", version = "1.4.0")
 install_version("dbplyr", version = "2.1.1")
 ```
