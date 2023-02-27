@@ -98,25 +98,58 @@ icustays_tble <- icustays_tble %>%
 
 4. Connect to the `admissions` table and only keep the patients who have a match in `icustays_tble` (according to `subject_id` and `hadm_id`).
 ```{r}
-# # TODO
-# admissions_tble <- 
+admissions_tble <- tbl(con, "admissions") %>%
+  show_query() %>%
+  semi_join(icustays_tble, by = c('subject_id', 'hadm_id')) %>%
+  print(width = Inf) 
+
+
 ```
 
 5. Connect to the `patients` table and only keep the patients who have a match in `icustays_tble` (according to `subject_id`).
 ```{r}
-# # TODO
-# patients_tble <-
+patients_tble <- tbl(con, "patients") %>%
+  show_query() %>%
+  semi_join(icustays_tble, by = c('subject_id')) %>%
+  print(width = Inf) 
 ```
 
 6. Connect to the `labevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the lab items listed in HW2. 
 ```{r}
-# # TODO
-# labevents_tble <- 
+itemid_interested = c(50912, 50971, 50983, 50902, 50882, 51221, 
+                      51301, 50931)
+labevents_tble <- tbl(con, "labevents") %>%
+  show_query() %>%
+  filter(itemid %in% itemid_interested) %>%
+  semi_join(icustays_tble, by = c('subject_id')) %>%
+  print(width = Inf) 
 ```
 Only keep the first lab measurements during ICU stay and pivot lab items to become variables/columns.
 ```{r}
 # # TODO
 # labevents_tble <- labevents_tble %>% ...
+
+
+d_labitems <- tbl(con, 'd_labitems') %>%
+  show_query() %>%
+  filter(itemid %in% itemid_interested) %>%
+  mutate(label = str_replace(label, '\\s', '_')) 
+
+
+ labevents_tble %>%
+  select(subject_id, itemid, valuenum, charttime) %>%
+  left_join(select(icustays_tble, subject_id, intime, outtime),  
+          by = c('subject_id')) %>% 
+  filter(charttime >= intime & charttime <= outtime) %>% 
+  left_join(select(d_labitems, label, itemid), by = c('itemid')) %>%
+  group_by(subject_id, label) %>%
+  slice_min(order_by = subject_id, label) %>%
+  ungroup() %>%
+  select(-intime, -outtime, -charttime, -itemid) %>%
+  pivot_wider(names_from = label, values_from = valuenum) %>%
+  print(width = Inf)
+
+ 
 ```
 
 7. Connect to `chartevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the chart events listed in HW2.
