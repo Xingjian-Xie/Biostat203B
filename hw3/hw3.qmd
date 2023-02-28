@@ -202,7 +202,7 @@ icu_cohort = icustays_tble %>%
   left_join(labevents_tble, by = c('subject_id')) %>%
   left_join(chartevents_tble, by = c('subject_id')) %>%
   mutate(age_adm = anchor_age + year(admittime) - anchor_year) %>%
-  filter(age_adm > 18) %>%
+  filter(age_adm >= 18) %>%
   mutate(thirty_day_mort = ifelse(is.na(deathtime), FALSE,
     DATE_DIFF(date(deathtime), date(admittime), DAY) <= 30)) %>%
   collect() %>%
