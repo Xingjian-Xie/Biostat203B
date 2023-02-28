@@ -140,8 +140,8 @@ labevents_tble = labevents_tble %>%
           by = c('subject_id')) %>% 
   filter(charttime >= intime & charttime <= outtime) %>% 
   left_join(select(d_labitems, label, itemid), by = c('itemid')) %>%
-  group_by(charttime) %>%
-  slice_min(order_by = subject_id, label) %>%
+  group_by(subject_id, label) %>%
+  slice_min(charttime) %>%
   ungroup() %>%
   select(-intime, -outtime, -charttime, -itemid) %>%
   pivot_wider(names_from = label, values_from = valuenum) %>%
