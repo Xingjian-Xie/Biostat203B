@@ -25,9 +25,10 @@ ui <- fluidPage(
       #             max = 50,
       #             value = 30),
     
-      selectInput(inputId = "dataset",
-                  label = "Choose a dataset:",
-                  choices = c('Ethnicity', 'Thirdy_Day_Mortality_Rate'))
+      selectInput(inputId = "variable",
+                  label = "Choose a variable:",
+                  choices = c('Ethnicity', 'Thirdy_Day_Mortality_Rate', 
+                  'Language', 'Insurance', 'Marital_status', 'Gender'))
                   
     ),
 
@@ -56,18 +57,21 @@ server <- function(input, output) {
   # 2. Its output type is a plot
   
   
-  y <- reactive({
-    switch(input$dataset,
+  var <- reactive({
+    switch(input$variable,
            'Ethnicity' = 'ethnicity',
-           'Thirdy_Day_Mortality_Rate' = 'thirty_day_mort'
+           'Thirdy_Day_Mortality_Rate' = 'thirty_day_mort',
+           'Language' = 'language',
+           'Insurance' = 'insurance', 
+           'Marital_status' = 'marital_status', 
+           'Gender' = 'gender'
     )
   })
   
   
   output$BarPlot <- renderPlot({
     
-    
-    ggplot(data, aes_string(x = y())) + geom_bar()
+    ggplot(data, aes_string(x = var())) + geom_bar()
 
   })
   
