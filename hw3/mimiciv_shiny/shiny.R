@@ -2,7 +2,7 @@
 
 library(shiny)
 library(ggplot2)
-data = readRDS("hw3/mimiciv_shiny/icu_cohort.rds")
+data = readRDS("icu_cohort.rds")
 flag_list = c('ethnicity', 'language', 'insurance',
               'marital_status', 'gender')
 # Define UI for app that draws a histogram ----
