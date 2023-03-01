@@ -32,7 +32,7 @@ ui <- fluidPage(
                   'Bicarbonate', 'Chloride', 'Creatinine', 'Glucose',
                   'Potassium', 'Sodium', 'Hematocrit', 'White_Blood_Cells',
                   'Heart_Rate', 'Blood_Pressure_Systolic',
-                  'Blood_Pressure_Mean','Respiratory_Rate',
+                  'Blood_Pressure_Mean', 'Respiratory_Rate',
                   'Temperature_Fahrenheit'))
                   
     ),
