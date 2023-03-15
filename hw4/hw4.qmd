@@ -45,3 +45,184 @@ Using the ICU cohort `icu_cohort.rds` you built in Homework 3, develop at least 
 2. Train and tune the models using the training set.
 
 3. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each model.
+
+
+(1) logistic regression
+
+
+```{r}
+library(GGally)
+library(gtsummary)
+library(tidyverse)
+library(tidymodels)
+```
+
+
+
+```{r}
+data = read_rds('icu_cohort.rds')
+
+as.factor(data$thirty_day_mort)
+
+data = data %>%
+  select(gender, marital_status, ethnicity, 28:42) %>%
+  mutate(thirty_day_mort = as.character(thirty_day_mort)) %>%
+  print(width = Inf)
+
+
+```
+
+```{r}
+data %>% tbl_summary(by = thirty_day_mort)
+```
+
+```{r}
+set.seed(203)
+
+data_split <- initial_split(
+  data,
+  strata = 'thirty_day_mort', 
+  prop = 0.5
+  )
+data_split
+```
+
+```{r}
+icu_other <- training(data_split)
+dim(icu_other)
+```
+
+```{r}
+icu_test <- testing(data_split)
+dim(icu_test)
+```
+
+```{r}
+num_vars = variable.names(data[4:17])
+cat_vars = variable.names(data[c(1:3, 18)]) 
+
+logit_recipe <- 
+  recipe(
+    thirty_day_mort ~ ., 
+    data = icu_other
+  ) %>%
+  # mean imputation for Ca
+  step_impute_mean(num_vars) %>%
+  # mode imputation for Thal
+  step_impute_mode(cat_vars) %>%
+  # create traditional dummy variables
+  step_dummy(all_nominal_predictors()) %>%
+  # zero-variance filter
+  step_zv(all_numeric_predictors()) %>% 
+  # center and scale numeric data
+  step_normalize(all_numeric_predictors()) %>%
+  # estimate the means and standard deviations
+  prep(training = icu_other, retain = TRUE)
+logit_recipe
+```
+
+```{r}
+logit_mod <- 
+  logistic_reg(
+    penalty = tune(), 
+    mixture = tune()
+  ) %>% 
+  set_engine("glmnet", standardize = FALSE)
+logit_mod
+```
+
+```{r}
+logit_wf <- workflow() %>%
+  add_recipe(logit_recipe) %>%
+  add_model(logit_mod)
+logit_wf
+```
+
+```{r}
+param_grid <- grid_regular(
+  penalty(range = c(-6, 3)), 
+  mixture(),
+  levels = c(100, 5)
+  )
+param_grid
+```
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(icu_other, v = 5)
+folds
+```
+
+
+```{r}
+system.time({
+logit_fit <- logit_wf %>%
+  tune_grid(
+    resamples = folds,
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
+    )
+})
+```
+
+```{r}
+logit_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "roc_auc") %>%
+  ggplot(mapping = aes(x = penalty, y = mean, color = mixture)) +
+  geom_point() +
+  labs(x = "Penalty", y = "CV AUC") +
+  scale_x_log10()
+```
+
+```{r}
+best_logit <- logit_fit %>%
+  select_best("roc_auc")
+best_logit
+```
+
+```{r}
+final_wf <- logit_wf %>%
+  finalize_workflow(best_logit)
+final_wf
+```
+
+```{r}
+final_fit <- 
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+```{r}
+final_fit %>% 
+  collect_metrics()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
