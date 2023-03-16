@@ -51,6 +51,7 @@ Using the ICU cohort `icu_cohort.rds` you built in Homework 3, develop at least 
 
 
 ```{r}
+#| eval: false
 library(GGally)
 library(gtsummary)
 library(tidyverse)
@@ -61,17 +62,17 @@ library(xgboost)
 
 
 
-```{r}
+```{r} 
+#| eval: false
 data = read_rds('icu_cohort.rds')
-
 as.factor(data$thirty_day_mort)
+```
 
+```{r}
 data = data %>%
   select(gender, marital_status, ethnicity, 28:42) %>%
   mutate(thirty_day_mort = as.character(thirty_day_mort)) %>%
   print(width = Inf)
-
-
 ```
 
 ```{r}
