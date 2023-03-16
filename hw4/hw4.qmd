@@ -1,7 +1,7 @@
 ---
 title: "Biostat 203B Homework 4"
 subtitle: Due Mar 24 @ 11:59PM
-author: YOUR NAME and UID
+author: Xingjian Xie and 805928972
 format:
   html:
     theme: cosmo
@@ -55,6 +55,8 @@ library(GGally)
 library(gtsummary)
 library(tidyverse)
 library(tidymodels)
+library(ranger)
+library(xgboost)
 ```
 
 
@@ -107,7 +109,7 @@ logit_recipe <-
     data = icu_other
   ) %>%
   # mean imputation for Ca
-  step_impute_mean(num_vars) %>%
+  step_impute_median(num_vars) %>%
   # mode imputation for Thal
   step_impute_mode(cat_vars) %>%
   # create traditional dummy variables
@@ -176,6 +178,12 @@ logit_fit %>%
   labs(x = "Penalty", y = "CV AUC") +
   scale_x_log10()
 ```
+```{r}
+logit_fit %>%
+  show_best("roc_auc")
+```
+
+
 
 ```{r}
 best_logit <- logit_fit %>%
@@ -201,13 +209,244 @@ final_fit %>%
   collect_metrics()
 ```
 
+(2) Random forest
+
+```{r}
+rf_recipe <- 
+  recipe(
+    thirty_day_mort ~ ., 
+    data = icu_other
+  ) %>%
+  # # create traditional dummy variables (not necessary for random forest in R)
+  # step_dummy(all_nominal()) %>%
+  step_impute_median(num_vars) %>%
+  step_impute_mode(cat_vars) %>%
+  # zero-variance filter
+  step_zv(all_numeric_predictors()) %>% 
+  # # center and scale numeric data (not necessary for random forest)
+  # step_normalize(all_numeric_predictors()) %>%
+  # estimate the means and standard deviations
+  prep(training = icu_other, retain = TRUE)
+rf_recipe
+```
+
+```{r}
+rf_mod <- 
+  rand_forest(
+    mode = "classification",
+    # Number of predictors randomly sampled in each split
+    mtry = tune(),
+    # Number of trees in ensemble
+    trees = tune()
+  ) %>% 
+  set_engine("ranger")
+rf_mod
+```
+
+```{r}
+rf_wf <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_mod)
+rf_wf
+```
+
+```{r}
+param_grid <- grid_regular(
+  trees(range = c(100L, 300L)), 
+  mtry(range = c(1L, 5L)),
+  levels = c(3, 5)
+  )
+param_grid
+```
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(icu_other, v = 5)
+folds
+```
 
 
 
+```{r}
+system.time({
+rf_fit <- rf_wf %>%
+  tune_grid(
+    resamples = folds,
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
+    )
+})
+```
+
+
+```{r}
+rf_fit
+```
+
+
+```{r}
+rf_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "roc_auc") %>%
+  ggplot(mapping = aes(x = trees, y = mean, color = mtry)) +
+  geom_point() + 
+  # geom_line() + 
+  labs(x = "Num. of Trees", y = "CV AUC")
+```
+
+```{r}
+rf_fit %>%
+  show_best("roc_auc")
+```
+
+
+```{r}
+best_rf <- rf_fit %>%
+  select_best("roc_auc")
+best_rf
+```
+
+```{r}
+# Final workflow
+final_wf <- rf_wf %>%
+  finalize_workflow(best_rf)
+final_wf
+```
+
+```{r}
+# Fit the whole training set, then predict the test cases
+final_fit <- 
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+
+```{r}
+# Test metrics
+final_fit %>% 
+  collect_metrics()
+```
+
+
+(3) 
+
+```{r}
+gb_recipe <- 
+  recipe(
+    thirty_day_mort ~ ., 
+    data = icu_other
+  ) %>%
+  step_impute_median(num_vars) %>%
+  step_impute_mode(cat_vars) %>%
+  # create traditional dummy variables (necessary for xgboost)
+  step_dummy(all_nominal_predictors()) %>%
+  # zero-variance filter
+  step_zv(all_numeric_predictors()) %>% 
+  # estimate the means and standard deviations
+  prep(training = icu_other, retain = TRUE)
+gb_recipe
+```
+
+```{r}
+gb_mod <- 
+  boost_tree(
+    mode = "classification",
+    trees = 1000, 
+    tree_depth = tune(),
+    learn_rate = tune()
+  ) %>% 
+  set_engine("xgboost")
+gb_mod
+```
+
+```{r}
+gb_wf <- workflow() %>%
+  add_recipe(gb_recipe) %>%
+  add_model(gb_mod)
+gb_wf
+```
+
+```{r}
+param_grid <- grid_regular(
+  tree_depth(range = c(1L, 3L)),
+  learn_rate(range = c(-5, 2), trans = log10_trans()),
+  levels = c(3, 10)
+  )
+param_grid
+```
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(icu_other, v = 5)
+folds
+```
+
+```{r}
+system.time({
+gb_fit <- gb_wf %>%
+  tune_grid(
+    resamples = folds,
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
+    )
+})
+```
 
 
 
+```{r}
+gb_fit
+```
 
+
+```{r}
+gb_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "roc_auc") %>%
+  ggplot(mapping = aes(x = learn_rate, y = mean, color = tree_depth)) +
+  geom_point() +
+  labs(x = "Learning Rate", y = "CV AUC") +
+  scale_x_log10()
+```
+
+
+```{r}
+gb_fit %>%
+  show_best("roc_auc")
+```
+
+
+```{r}
+best_gb <- gb_fit %>%
+  select_best("roc_auc")
+best_gb
+```
+
+```{r}
+# Final workflow
+final_wf <- gb_wf %>%
+  finalize_workflow(best_gb)
+final_wf
+```
+
+```{r}
+# Fit the whole training set, then predict the test cases
+final_fit <- 
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+
+```{r}
+# Test metrics
+final_fit %>% 
+  collect_metrics()
+```
 
 
 
