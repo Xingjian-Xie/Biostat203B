@@ -331,7 +331,7 @@ final_fit %>%
 ```
 
 
-(3) 
+(3) boosting
 
 ```{r}
 gb_recipe <- 
