@@ -23,14 +23,10 @@ knitr:
 
 Display machine information:
 ```{r}
-#| eval: false
-
 sessionInfo()
 ```
 Load database libraries and the tidyverse frontend:
 ```{r}
-#| eval: false
-
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(tidymodels))
 suppressPackageStartupMessages(library(lubridate))
@@ -51,7 +47,6 @@ Using the ICU cohort `icu_cohort.rds` you built in Homework 3, develop at least 
 
 
 ```{r}
-#| eval: false
 library(GGally)
 library(gtsummary)
 library(tidyverse)
@@ -63,12 +58,8 @@ library(xgboost)
 
 
 ```{r} 
-#| eval: false
 data = read_rds('icu_cohort.rds')
-as.factor(data$thirty_day_mort)
-```
-
-```{r}
+data$thirty_day_mort = as.factor(data$thirty_day_mort)
 data = data %>%
   select(gender, marital_status, ethnicity, 28:42) %>%
   mutate(thirty_day_mort = as.character(thirty_day_mort)) %>%
